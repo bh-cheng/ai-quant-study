@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Task 2 Indicator Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Task 2</p>
+          <h1>Indicator Lab</h1>
+        </div>
+        <div class="top-actions">
+          <label class="select-label">
+            <span>股票数据</span>
+            <select id="datasetSelect"></select>
+          </label>
+          <label class="select-label">
+            <span>日期起点</span>
+            <input id="startDate" type="date" />
+          </label>
+          <label class="select-label">
+            <span>日期终点</span>
+            <input id="endDate" type="date" />
+          </label>
+          <button id="downloadCsv" class="command-btn" type="button">导出指标 CSV</button>
+          <button id="downloadParams" class="command-btn secondary" type="button">导出参数 JSON</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="data-panel">
+          <div class="panel-heading">
+            <h2>数据模块</h2>
+            <span id="dataCount" class="muted"></span>
+          </div>
+          <div id="dataModules" class="module-list"></div>
+        </aside>
+
+        <section class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <p id="chartEyebrow" class="eyebrow">Adjusted qfq_* price basis</p>
+              <h2 id="chartTitle">加载中</h2>
+            </div>
+            <div id="statusPills" class="pill-row"></div>
+          </div>
+
+          <div id="warningBox" class="warning-box hidden"></div>
+
+          <div class="chart-grid">
+            <section class="chart-block large">
+              <div class="chart-block-head">
+                <h3>复权价格、均线与布林带</h3>
+                <div class="label-stack">
+                  <span id="maLabel" class="muted"></span>
+                  <span id="bollLabel" class="muted"></span>
+                </div>
+              </div>
+              <svg id="priceChart" class="chart-svg" role="img" aria-label="复权价格、均线与布林带"></svg>
+            </section>
+
+            <section class="chart-block">
+              <div class="chart-block-head">
+                <h3>RSI</h3>
+                <span id="rsiLabel" class="muted"></span>
+              </div>
+              <svg id="rsiChart" class="chart-svg" role="img" aria-label="RSI"></svg>
+            </section>
+
+            <section class="chart-block">
+              <div class="chart-block-head">
+                <h3>MACD</h3>
+                <span id="macdLabel" class="muted"></span>
+              </div>
+              <svg id="macdChart" class="chart-svg" role="img" aria-label="MACD"></svg>
+            </section>
+
+            <section class="chart-block">
+              <div class="chart-block-head">
+                <h3>ATR</h3>
+                <span id="atrLabel" class="muted"></span>
+              </div>
+              <svg id="atrChart" class="chart-svg" role="img" aria-label="ATR"></svg>
+            </section>
+
+            <section class="chart-block">
+              <div class="chart-block-head">
+                <h3>KDJ</h3>
+                <span id="kdjLabel" class="muted"></span>
+              </div>
+              <svg id="kdjChart" class="chart-svg" role="img" aria-label="KDJ"></svg>
+            </section>
+
+            <section class="chart-block">
+              <div class="chart-block-head">
+                <h3>OBV</h3>
+                <span id="obvLabel" class="muted"></span>
+              </div>
+              <svg id="obvChart" class="chart-svg" role="img" aria-label="OBV"></svg>
+            </section>
+          </div>
+
+          <section class="summary-strip">
+            <div>
+              <span class="summary-label">最新日期</span>
+              <strong id="latestDate">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">qfq_close</span>
+              <strong id="latestClose">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">RSI</span>
+              <strong id="latestRsi">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">MACD Hist</span>
+              <strong id="latestMacd">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">ATR</span>
+              <strong id="latestAtr">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">MA</span>
+              <strong id="latestMa">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">KDJ J</span>
+              <strong id="latestKdj">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">OBV</span>
+              <strong id="latestObv">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">组合状态</span>
+              <strong id="comboState">-</strong>
+            </div>
+          </section>
+        </section>
+
+        <aside class="param-panel">
+          <div class="panel-heading">
+            <h2>参数模块</h2>
+            <span id="paramModuleName" class="muted"></span>
+          </div>
+
+          <section class="control-section">
+            <h3>一一对应状态</h3>
+            <p id="moduleBinding" class="small-copy"></p>
+          </section>
+
+          <section class="control-section">
+            <h3>指标开关</h3>
+            <div class="toggle-grid">
+              <label><input id="toggleRsi" type="checkbox" checked /> RSI</label>
+              <label><input id="toggleMacd" type="checkbox" checked /> MACD</label>
+              <label><input id="toggleBoll" type="checkbox" checked /> 布林带</label>
+              <label><input id="toggleAtr" type="checkbox" checked /> ATR</label>
+              <label><input id="toggleMa" type="checkbox" checked /> MA</label>
+              <label><input id="toggleKdj" type="checkbox" checked /> KDJ</label>
+              <label><input id="toggleObv" type="checkbox" checked /> OBV</label>
+            </div>
+          </section>
+
+          <section class="control-section">
+            <h3>联动组合</h3>
+            <div id="presetButtons" class="preset-grid"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>RSI</h3>
+            <div id="rsiControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>MACD</h3>
+            <div id="macdControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>布林带</h3>
+            <div id="bollControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>ATR</h3>
+            <div id="atrControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>MA</h3>
+            <div id="maControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>KDJ</h3>
+            <div id="kdjControls"></div>
+          </section>
+
+          <section class="control-section">
+            <h3>OBV</h3>
+            <div id="obvControls"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./data-bundle.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
