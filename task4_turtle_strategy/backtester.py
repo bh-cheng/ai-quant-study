@@ -172,9 +172,16 @@ def run_turtle_backtest(
 
     portfolio = pd.concat([result, pd.DataFrame(records)], axis=1)
     portfolio["strategy_return"] = portfolio["portfolio_value"].pct_change().fillna(0.0)
-    first_close = float(portfolio[f"{p}_close"].iloc[0])
-    portfolio["benchmark_value"] = (
-        backtest_config.initial_cash * portfolio[f"{p}_close"].astype(float) / first_close
+    benchmark_start_idx = min(
+        len(portfolio) - 1,
+        max(strategy_config.entry_window, strategy_config.exit_window, strategy_config.n_window),
+    )
+    benchmark_start_close = float(portfolio[f"{p}_close"].iloc[benchmark_start_idx])
+    portfolio["benchmark_value"] = np.nan
+    portfolio.loc[benchmark_start_idx:, "benchmark_value"] = (
+        backtest_config.initial_cash
+        * portfolio.loc[benchmark_start_idx:, f"{p}_close"].astype(float)
+        / benchmark_start_close
     )
     portfolio["benchmark_return"] = portfolio["benchmark_value"].pct_change().fillna(0.0)
     portfolio["running_max"] = portfolio["portfolio_value"].cummax()
@@ -271,7 +278,12 @@ def calculate_performance_metrics(
         sharpe = float((daily_returns.mean() * backtest_config.annual_periods) / annualized_vol)
     max_drawdown = float(portfolio["drawdown"].min())
     calmar = np.nan if max_drawdown == 0 else float(annualized_return / abs(max_drawdown))
-    benchmark_cum = float(portfolio["benchmark_value"].iloc[-1] / portfolio["benchmark_value"].iloc[0] - 1)
+    benchmark_values = portfolio["benchmark_value"].dropna()
+    benchmark_cum = (
+        float(benchmark_values.iloc[-1] / benchmark_values.iloc[0] - 1)
+        if not benchmark_values.empty
+        else np.nan
+    )
 
     trade_stats = calculate_trade_stats(portfolio)
     metrics: dict[str, float | int] = {
