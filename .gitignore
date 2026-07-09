@@ -1,2 +1,6 @@
 notebooks/.ipynb_checkpoints/
 zhongji_xuchuang_kline_recreated.html
+__pycache__/
+*.pyc
+.DS_Store
+TASK*/rendered*/
