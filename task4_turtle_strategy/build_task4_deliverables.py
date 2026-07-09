@@ -611,6 +611,198 @@ def build_html_report(portfolios: dict[str, pd.DataFrame], metrics_rows: list[di
     )
 
 
+def build_interactive_html_report() -> None:
+    datasets = []
+    for path in discover_data_files():
+        data = read_stock_data(path)
+        label = instrument_label(data, path)
+        datasets.append(
+            {
+                "key": str(data["instrument_key"].iloc[0]),
+                "label": label,
+                "tsCode": str(data["ts_code"].iloc[0]),
+                "market": str(data["market"].iloc[0]),
+                "currency": str(data["currency"].iloc[0]),
+                "startDate": data["date"].dt.strftime("%Y-%m-%d").iloc[0],
+                "endDate": data["date"].dt.strftime("%Y-%m-%d").iloc[-1],
+                "rows": [
+                    {
+                        "date": row.date.strftime("%Y-%m-%d"),
+                        "open": safe_metric(row.qfq_open),
+                        "high": safe_metric(row.qfq_high),
+                        "low": safe_metric(row.qfq_low),
+                        "close": safe_metric(row.qfq_close),
+                        "preClose": safe_metric(row.qfq_pre_close),
+                    }
+                    for row in data[["date", "qfq_open", "qfq_high", "qfq_low", "qfq_close", "qfq_pre_close"]].itertuples(index=False)
+                ],
+            }
+        )
+    payload = json.dumps({"datasets": datasets}, ensure_ascii=False)
+    template = r"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task 4 海龟策略回测</title>
+  <style>
+    :root { --bg:#f5f7fa; --surface:#fff; --line:#d9e0e8; --text:#1d2733; --muted:#667385; --blue:#1f6fb2; --orange:#d9822b; --green:#2e8f57; --red:#b94d4d; --shadow:0 10px 30px rgba(28,39,51,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    button, input { font:inherit; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:18px 22px; background:var(--surface); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+    .eyebrow { margin:0 0 4px; font-size:12px; color:var(--muted); letter-spacing:0; text-transform:uppercase; }
+    h1, h2, h3 { margin:0; letter-spacing:0; }
+    h1 { font-size:24px; line-height:1.15; }
+    h2 { font-size:18px; }
+    h3 { font-size:14px; }
+    p { margin:0; color:var(--muted); line-height:1.6; }
+    .top-actions { display:flex; align-items:end; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .select-label { display:grid; gap:5px; color:var(--muted); font-size:12px; }
+    .select-label input { min-width:150px; height:36px; border:1px solid var(--line); border-radius:6px; padding:0 10px; background:#fff; color:var(--text); }
+    .command-btn { height:36px; border:1px solid #245f99; border-radius:6px; background:var(--blue); color:#fff; padding:0 12px; cursor:pointer; }
+    .command-btn.secondary { color:var(--blue); background:#f7fbff; }
+    .workspace { display:grid; grid-template-columns:260px minmax(520px,1fr) 330px; gap:14px; padding:14px; }
+    .data-panel, .chart-panel, .param-panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); }
+    .data-panel, .param-panel { padding:14px; align-self:start; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow:auto; }
+    .chart-panel { min-width:0; padding:16px; }
+    .panel-heading, .chart-header, .chart-block-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .muted { color:var(--muted); font-size:12px; }
+    .module-list { display:grid; gap:10px; margin-top:14px; }
+    .data-card { width:100%; text-align:left; border:1px solid var(--line); border-radius:8px; background:#fbfcfe; padding:11px; cursor:pointer; }
+    .data-card.active { border-color:var(--blue); box-shadow:inset 3px 0 0 var(--blue); background:#f5f9ff; }
+    .data-card strong { display:block; font-size:14px; margin-bottom:4px; }
+    .data-card span { display:block; color:var(--muted); font-size:12px; line-height:1.45; }
+    .pill-row { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+    .pill { border:1px solid var(--line); border-radius:999px; padding:4px 8px; font-size:12px; color:var(--muted); background:#fbfcfe; }
+    .warning-box { margin-top:12px; padding:10px 12px; border:1px solid #f1c27d; background:#fff8ed; color:#8a5a0a; border-radius:8px; font-size:13px; }
+    .hidden { display:none; }
+    .summary-strip { display:grid; grid-template-columns:repeat(5,minmax(120px,1fr)); gap:10px; margin-top:14px; }
+    .summary-strip div { border:1px solid var(--line); border-radius:8px; background:#fbfcfe; padding:10px; }
+    .summary-label { display:block; color:var(--muted); font-size:12px; margin-bottom:4px; }
+    .summary-strip strong { font-size:18px; }
+    .chart-grid { display:grid; gap:14px; margin-top:14px; }
+    .chart-block { border:1px solid var(--line); border-radius:8px; padding:12px; background:#fff; min-width:0; }
+    .chart-block.large svg { height:420px; }
+    .chart-block svg { width:100%; height:300px; display:block; }
+    .table-panel { margin-top:14px; border:1px solid var(--line); border-radius:8px; overflow:auto; background:#fff; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { border-bottom:1px solid var(--line); padding:9px 8px; text-align:right; white-space:nowrap; }
+    th:first-child, td:first-child { text-align:left; }
+    th { background:#f8fafc; color:#334155; }
+    .control-section { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
+    .control-section:first-of-type { border-top:0; padding-top:0; }
+    .control-section h3 { margin-bottom:10px; }
+    .control-row { display:grid; grid-template-columns:1fr 96px; align-items:center; gap:8px; margin:10px 0; color:var(--muted); font-size:12px; }
+    .control-row input[type=number] { width:96px; height:32px; border:1px solid var(--line); border-radius:6px; padding:0 8px; color:var(--text); }
+    .toggle-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; color:var(--muted); font-size:13px; }
+    .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .preset-grid button { height:34px; border:1px solid var(--line); border-radius:6px; background:#fbfcfe; cursor:pointer; color:var(--text); }
+    .preset-grid button.active { border-color:var(--blue); color:var(--blue); background:#f5f9ff; }
+    .small-copy { font-size:12px; color:var(--muted); line-height:1.55; }
+    @media (max-width:1100px) { .workspace { grid-template-columns:1fr; } .data-panel, .param-panel { position:static; max-height:none; } .module-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:720px) { .topbar { display:block; } .top-actions { justify-content:flex-start; margin-top:12px; } .module-list, .summary-strip { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Task 4 · Turtle Strategy Lab</p>
+        <h1>海龟策略回测工作台</h1>
+      </div>
+      <div class="top-actions">
+        <label class="select-label"><span>日期起点</span><input id="startDate" type="date"></label>
+        <label class="select-label"><span>日期终点</span><input id="endDate" type="date"></label>
+        <button id="downloadCsv" class="command-btn" type="button">导出当前回测 CSV</button>
+        <button id="downloadParams" class="command-btn secondary" type="button">导出参数 JSON</button>
+        <a class="command-btn secondary" href="../index.html" style="display:inline-flex;align-items:center;text-decoration:none;">返回汇总页</a>
+      </div>
+    </header>
+    <main class="workspace">
+      <aside class="data-panel">
+        <div class="panel-heading"><h2>股票标的</h2><span id="dataCount" class="muted"></span></div>
+        <div id="dataModules" class="module-list"></div>
+      </aside>
+      <section class="chart-panel">
+        <div class="chart-header">
+          <div><p id="chartEyebrow" class="eyebrow">Adjusted qfq_* price basis</p><h2 id="chartTitle">加载中</h2></div>
+          <div id="statusPills" class="pill-row"></div>
+        </div>
+        <div id="warningBox" class="warning-box hidden"></div>
+        <section class="summary-strip">
+          <div><span class="summary-label">累计收益</span><strong id="cum">-</strong></div>
+          <div><span class="summary-label">最大回撤</span><strong id="dd">-</strong></div>
+          <div><span class="summary-label">Sharpe</span><strong id="sharpe">-</strong></div>
+          <div><span class="summary-label">买入持有</span><strong id="bench">-</strong></div>
+          <div><span class="summary-label">交易次数</span><strong id="trades">-</strong></div>
+        </section>
+        <div class="chart-grid">
+          <section class="chart-block large"><div class="chart-block-head"><h3>复权价格、高低通道与交易信号</h3><span id="priceLabel" class="muted"></span></div><svg id="priceSvg" role="img" aria-label="价格通道图"></svg></section>
+          <section class="chart-block"><div class="chart-block-head"><h3>策略净值、基准与回撤</h3><span id="equityLabel" class="muted"></span></div><svg id="equitySvg" role="img" aria-label="净值回撤图"></svg></section>
+          <section class="chart-block"><div class="chart-block-head"><h3>参数敏感性</h3><span class="muted">当前标的 · 4 组通道参数</span></div><svg id="sensSvg" role="img" aria-label="参数敏感性图"></svg></section>
+        </div>
+        <section class="table-panel">
+          <table><thead><tr><th>标的</th><th>累计收益</th><th>最大回撤</th><th>Sharpe</th><th>买入持有</th><th>交易次数</th><th>持仓占比</th></tr></thead><tbody id="metricsBody"></tbody></table>
+        </section>
+      </section>
+      <aside class="param-panel">
+        <div class="panel-heading"><h2>策略参数</h2><span id="paramState" class="muted">20/10</span></div>
+        <section class="control-section"><h3>参数预设</h3><div class="preset-grid"><button type="button" data-preset="20,10">20/10</button><button type="button" data-preset="30,15">30/15</button><button type="button" data-preset="40,20">40/20</button><button type="button" data-preset="55,20">55/20</button></div></section>
+        <section class="control-section"><h3>通道与 N 值</h3><div id="strategyControls"></div></section>
+        <section class="control-section"><h3>资金与交易成本</h3><div id="moneyControls"></div></section>
+        <section class="control-section"><h3>图表显示</h3><div class="toggle-grid"><label><input id="showEntry" type="checkbox" checked> 入场通道</label><label><input id="showExit" type="checkbox" checked> 退出通道</label><label><input id="showSignals" type="checkbox" checked> 买卖信号</label><label><input id="showBenchmark" type="checkbox" checked> 买入持有</label><label><input id="showDrawdown" type="checkbox" checked> 回撤</label></div></section>
+        <section class="control-section"><h3>当前规则</h3><p id="ruleText" class="small-copy"></p></section>
+      </aside>
+    </main>
+  </div>
+  <script>
+    const payload = __PAYLOAD__;
+    const pct = v => v === null || Number.isNaN(v) ? "-" : (v * 100).toFixed(2) + "%";
+    const num = v => v === null || Number.isNaN(v) ? "-" : Number(v).toFixed(2);
+    const fmtMoney = v => v === null || Number.isNaN(v) ? "-" : Math.round(v).toLocaleString("zh-CN");
+    const state = { datasetIndex: 0, entryWindow: 20, exitWindow: 10, nWindow: 20, stopN: 2, initialCash: 100000, riskPerUnit: 0.01, feeRate: 0.001, slippageRate: 0.0005, allowFractional: true };
+    const controls = [["entryWindow","入场通道",2,80,1,"strategyControls"],["exitWindow","退出通道",2,60,1,"strategyControls"],["nWindow","N 值周期",2,60,1,"strategyControls"],["stopN","止损 N 倍数",0.5,5,0.1,"strategyControls"],["initialCash","初始资金",10000,1000000,10000,"moneyControls"],["riskPerUnit","单 unit 风险",0.002,0.05,0.001,"moneyControls"],["feeRate","手续费率",0,0.01,0.0001,"moneyControls"],["slippageRate","滑点率",0,0.01,0.0001,"moneyControls"]];
+    function buildControls(){ controls.forEach(([key,label,min,max,step,target])=>{ const wrap=document.createElement("label"); wrap.className="control-row"; wrap.innerHTML=`<span>${label}</span><input id="${key}" type="number" min="${min}" max="${max}" step="${step}" value="${state[key]}">`; document.querySelector("#"+target).appendChild(wrap); wrap.querySelector("input").addEventListener("input", e=>{ const value=Number(e.target.value); if(!Number.isNaN(value)){ state[key]=value; render(); }}); }); }
+    function initDates(){ const dates=payload.datasets.flatMap(d=>d.rows.map(r=>r.date)); document.querySelector("#startDate").value=dates.reduce((a,b)=>a<b?a:b); document.querySelector("#endDate").value=dates.reduce((a,b)=>a>b?a:b); document.querySelector("#startDate").addEventListener("input", render); document.querySelector("#endDate").addEventListener("input", render); }
+    function initDataCards(){ const list=document.querySelector("#dataModules"); document.querySelector("#dataCount").textContent=`${payload.datasets.length} 个标的`; list.innerHTML=""; payload.datasets.forEach((d,i)=>{ const btn=document.createElement("button"); btn.type="button"; btn.className="data-card"; btn.dataset.index=i; btn.innerHTML=`<strong>${d.label}</strong><span>${d.market} · ${d.currency}</span><span>${d.startDate} 至 ${d.endDate}</span>`; btn.addEventListener("click",()=>{ state.datasetIndex=i; render(); }); list.appendChild(btn); }); }
+    function initPresets(){ document.querySelectorAll("[data-preset]").forEach(btn=>{ btn.addEventListener("click",()=>{ const [entry, exit]=btn.dataset.preset.split(",").map(Number); state.entryWindow=entry; state.exitWindow=exit; document.querySelector("#entryWindow").value=entry; document.querySelector("#exitWindow").value=exit; render(); }); }); }
+    function windowMax(rows, idx, key, win){ if(idx<win) return null; let out=-Infinity; for(let i=idx-win;i<idx;i+=1) out=Math.max(out, rows[i][key]); return out; }
+    function windowMin(rows, idx, key, win){ if(idx<win) return null; let out=Infinity; for(let i=idx-win;i<idx;i+=1) out=Math.min(out, rows[i][key]); return out; }
+    function enrichRows(baseRows,cfg){ const rows=baseRows.map(r=>({...r})); for(let i=0;i<rows.length;i+=1){ const r=rows[i]; r.tr=Math.max(r.high-r.low, Math.abs(r.high-r.preClose), Math.abs(r.low-r.preClose)); r.entryHigh=windowMax(rows,i,"high",cfg.entryWindow); r.exitLow=windowMin(rows,i,"low",cfg.exitWindow); r.n=null; } if(rows.length>=cfg.nWindow){ let sum=0; for(let i=0;i<cfg.nWindow;i+=1) sum+=rows[i].tr; rows[cfg.nWindow-1].n=sum/cfg.nWindow; for(let i=cfg.nWindow;i<rows.length;i+=1) rows[i].n=((cfg.nWindow-1)*rows[i-1].n+rows[i].tr)/cfg.nWindow; } for(let i=0;i<rows.length;i+=1){ rows[i].nForSignal=i>0?rows[i-1].n:null; rows[i].breakoutLong=rows[i].entryHigh!==null&&rows[i].nForSignal!==null&&rows[i].close>rows[i].entryHigh; rows[i].exitLong=rows[i].exitLow!==null&&rows[i].close<rows[i].exitLow; } return rows; }
+    function backtest(baseRows,cfg){ const rows=enrichRows(baseRows,cfg); let cash=cfg.initialCash, shares=0, stopPrice=null, pending=null, runningMax=cfg.initialCash; for(let i=0;i<rows.length;i+=1){ const r=rows[i]; r.tradeAction="HOLD"; r.tradeReason=""; if(pending){ if(pending.side==="BUY"&&shares<=0&&cash>0&&pending.nForSize>0){ const executionPrice=r.open*(1+cfg.slippageRate); const unitShares=(cash*cfg.riskPerUnit)/(cfg.stopN*pending.nForSize); const maxAffordable=cash/(executionPrice*(1+cfg.feeRate)); let buyShares=Math.min(unitShares,maxAffordable); if(!cfg.allowFractional) buyShares=Math.floor(buyShares); if(buyShares>0){ const tradeValue=buyShares*executionPrice; const fee=tradeValue*cfg.feeRate; cash-=tradeValue+fee; shares=buyShares; stopPrice=executionPrice-cfg.stopN*pending.nForSize; r.tradeAction="BUY"; r.tradeReason=pending.reason; }} else if(pending.side==="SELL"&&shares>0){ const executionPrice=r.open*(1-cfg.slippageRate); const tradeValue=shares*executionPrice; const fee=tradeValue*cfg.feeRate; cash+=tradeValue-fee; shares=0; stopPrice=null; r.tradeAction="SELL"; r.tradeReason=pending.reason; } pending=null; } r.stopPrice=stopPrice; r.positionUnits=shares>0?1:0; r.shares=shares; r.cash=cash; r.portfolio=cash+shares*r.close; r.benchmark=cfg.initialCash*r.close/rows[0].close; runningMax=Math.max(runningMax,r.portfolio); r.drawdown=r.portfolio/runningMax-1; r.stopLong=shares>0&&stopPrice!==null&&r.close<=stopPrice; if(i<rows.length-1){ if(shares>0){ if(r.stopLong) pending={side:"SELL",reason:"2N stop loss"}; else if(r.exitLong) pending={side:"SELL",reason:`${cfg.exitWindow}-day low exit`}; } else if(r.breakoutLong){ pending={side:"BUY",reason:`${cfg.entryWindow}-day high breakout`,nForSize:r.nForSignal}; } } } for(let i=0;i<rows.length;i+=1){ rows[i].strategyReturn=i===0?0:rows[i].portfolio/rows[i-1].portfolio-1; rows[i].benchmarkReturn=i===0?0:rows[i].benchmark/rows[i-1].benchmark-1; } return rows; }
+    function metrics(rows,cfg){ if(!rows.length) return {finalValue:cfg.initialCash,cumulative:0,maxDrawdown:0,sharpe:null,benchmarkCumulative:0,tradeCount:0,exposure:0}; const finalValue=rows.at(-1).portfolio; const cumulative=finalValue/cfg.initialCash-1; const mean=rows.reduce((s,r)=>s+r.strategyReturn,0)/Math.max(1,rows.length); const variance=rows.length>1?rows.reduce((s,r)=>s+Math.pow(r.strategyReturn-mean,2),0)/(rows.length-1):0; const std=Math.sqrt(variance); const sharpe=std>0?Math.sqrt(252)*mean/std:null; return {finalValue,cumulative,maxDrawdown:Math.min(...rows.map(r=>r.drawdown)),sharpe,benchmarkCumulative:rows.at(-1).benchmark/rows[0].benchmark-1,tradeCount:rows.filter(r=>r.tradeAction==="BUY"||r.tradeAction==="SELL").length,exposure:rows.filter(r=>r.positionUnits>0).length/Math.max(1,rows.length)}; }
+    function currentConfig(){ return { entryWindow:Math.max(2,Math.round(state.entryWindow)), exitWindow:Math.max(2,Math.round(state.exitWindow)), nWindow:Math.max(2,Math.round(state.nWindow)), stopN:Math.max(.1,state.stopN), initialCash:Math.max(1,state.initialCash), riskPerUnit:Math.max(.0001,state.riskPerUnit), feeRate:Math.max(0,state.feeRate), slippageRate:Math.max(0,state.slippageRate), allowFractional:state.allowFractional }; }
+    function filteredRows(dataset){ const start=document.querySelector("#startDate").value; const end=document.querySelector("#endDate").value; return dataset.rows.filter(r=>(!start||r.date>=start)&&(!end||r.date<=end)); }
+    function points(rows,key,w,h,pad,minV,maxV){ return rows.map((r,i)=>{ const x=pad+i*(w-2*pad)/Math.max(1,rows.length-1); const v=r[key]; const y=h-pad-(v-minV)/Math.max(1e-9,maxV-minV)*(h-2*pad); return [x,y,v]; }).filter(p=>p[2]!==null&&!Number.isNaN(p[2])); }
+    function pathFrom(pts){ return pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" "); }
+    function drawPrice(dataset,rows,cfg){ const svg=document.querySelector("#priceSvg"); const w=svg.clientWidth||760, h=420, pad=42; const visible=rows.slice(-190); const values=visible.flatMap(r=>[r.close,r.entryHigh,r.exitLow,r.stopPrice]).filter(v=>v!==null); const minV=Math.min(...values), maxV=Math.max(...values), span=maxV-minV||1, lo=minV-span*.08, hi=maxV+span*.08; const close=points(visible,"close",w,h,pad,lo,hi), entry=points(visible,"entryHigh",w,h,pad,lo,hi), exit=points(visible,"exitLow",w,h,pad,lo,hi), stop=points(visible,"stopPrice",w,h,pad,lo,hi); const marks=visible.map((r,i)=>({...r,x:pad+i*(w-2*pad)/Math.max(1,visible.length-1)})).filter(r=>r.tradeAction==="BUY"||r.tradeAction==="SELL"); svg.setAttribute("viewBox",`0 0 ${w} ${h}`); svg.innerHTML=`<rect x="${pad}" y="20" width="${w-2*pad}" height="${h-2*pad}" fill="white" stroke="#d8dee8"/>${document.querySelector("#showExit").checked?`<path d="${pathFrom(exit)}" fill="none" stroke="#0f766e" stroke-width="2"/>`:""}${document.querySelector("#showEntry").checked?`<path d="${pathFrom(entry)}" fill="none" stroke="#d9822b" stroke-width="2"/>`:""}<path d="${pathFrom(stop)}" fill="none" stroke="#b94d4d" stroke-width="1.5" stroke-dasharray="5 5"/><path d="${pathFrom(close)}" fill="none" stroke="#213547" stroke-width="2.5"/>${document.querySelector("#showSignals").checked?marks.map(m=>`<circle cx="${m.x}" cy="${points([m],"close",w,h,pad,lo,hi)[0]?.[1]??0}" r="5" fill="${m.tradeAction==="BUY"?"#2e8f57":"#b94d4d"}"><title>${m.date} ${m.tradeAction} ${m.tradeReason}</title></circle>`).join(""):""}<text x="${pad}" y="14" fill="#667385" font-size="12">${dataset.label} · ${cfg.entryWindow}/${cfg.exitWindow} · N=${cfg.nWindow}</text><text x="${pad}" y="${h-8}" fill="#64748b" font-size="12">${visible[0]?.date??""}</text><text x="${w-pad}" y="${h-8}" fill="#64748b" font-size="12" text-anchor="end">${visible.at(-1)?.date??""}</text>`; }
+    function drawEquity(rows){ const svg=document.querySelector("#equitySvg"); const w=svg.clientWidth||760, h=300, pad=42; const values=rows.flatMap(r=>[r.portfolio,r.benchmark]).filter(v=>v!==null); const minV=Math.min(...values), maxV=Math.max(...values), span=maxV-minV||1; const port=points(rows,"portfolio",w,190,pad,minV-span*.08,maxV+span*.08); const bench=points(rows,"benchmark",w,190,pad,minV-span*.08,maxV+span*.08); const minDd=Math.min(...rows.map(r=>r.drawdown),-.01); const dd=rows.map((r,i)=>[pad+i*(w-2*pad)/Math.max(1,rows.length-1),260-(r.drawdown-minDd)/(0-minDd)*70]).filter(p=>Number.isFinite(p[1])); svg.setAttribute("viewBox",`0 0 ${w} ${h}`); svg.innerHTML=`<rect x="${pad}" y="20" width="${w-2*pad}" height="160" fill="white" stroke="#d8dee8"/>${document.querySelector("#showBenchmark").checked?`<path d="${pathFrom(bench)}" fill="none" stroke="#64748b" stroke-width="2"/>`:""}<path d="${pathFrom(port)}" fill="none" stroke="#1f6fb2" stroke-width="2.5"/><rect x="${pad}" y="205" width="${w-2*pad}" height="70" fill="white" stroke="#d8dee8"/>${document.querySelector("#showDrawdown").checked?`<path d="${pathFrom(dd)}" fill="none" stroke="#b94d4d" stroke-width="2"/>`:""}<text x="${pad}" y="294" fill="#64748b" font-size="12">蓝线为策略净值，灰线为买入持有，红线为回撤</text>`; }
+    function drawSensitivity(dataset,cfg){ const svg=document.querySelector("#sensSvg"); const w=svg.clientWidth||760, h=300, pad=38; const combos=[[20,10],[30,15],[40,20],[55,20]]; const base=filteredRows(dataset); const rows=combos.map(([entryWindow,exitWindow])=>{ const localCfg={...cfg,entryWindow,exitWindow}; return {parameter:`${entryWindow}/${exitWindow}`,...metrics(backtest(base,localCfg),localCfg)}; }); const cell=(w-2*pad)/rows.length; svg.setAttribute("viewBox",`0 0 ${w} ${h}`); svg.innerHTML=rows.map((r,i)=>{ const x=pad+i*cell+6; const fill=r.cumulative>=0?"#bfe6ce":"#f2c4c4"; return `<rect x="${x}" y="38" width="${cell-12}" height="175" rx="8" fill="${fill}" stroke="#d8dee8"/><text x="${x+(cell-12)/2}" y="76" text-anchor="middle" font-size="17" fill="#172033">${r.parameter}</text><text x="${x+(cell-12)/2}" y="116" text-anchor="middle" font-size="14" fill="#172033">收益 ${pct(r.cumulative)}</text><text x="${x+(cell-12)/2}" y="148" text-anchor="middle" font-size="14" fill="#172033">回撤 ${pct(r.maxDrawdown)}</text><text x="${x+(cell-12)/2}" y="180" text-anchor="middle" font-size="14" fill="#172033">交易 ${r.tradeCount}</text>`; }).join(""); }
+    function updateMetricsTable(cfg){ document.querySelector("#metricsBody").innerHTML=payload.datasets.map(d=>{ const result=backtest(filteredRows(d),cfg); const s=metrics(result,cfg); return `<tr><td>${d.label}</td><td>${pct(s.cumulative)}</td><td>${pct(s.maxDrawdown)}</td><td>${num(s.sharpe)}</td><td>${pct(s.benchmarkCumulative)}</td><td>${s.tradeCount}</td><td>${pct(s.exposure)}</td></tr>`; }).join(""); }
+    function render(){ const cfg=currentConfig(); const dataset=payload.datasets[state.datasetIndex]; const baseRows=filteredRows(dataset); const warning=document.querySelector("#warningBox"); document.querySelectorAll(".data-card").forEach((card,idx)=>card.classList.toggle("active",idx===state.datasetIndex)); document.querySelectorAll("[data-preset]").forEach(btn=>btn.classList.toggle("active",btn.dataset.preset===`${cfg.entryWindow},${cfg.exitWindow}`)); document.querySelector("#paramState").textContent=`${cfg.entryWindow}/${cfg.exitWindow}`; document.querySelector("#chartTitle").textContent=dataset.label; document.querySelector("#priceLabel").textContent=`入场 ${cfg.entryWindow} · 退出 ${cfg.exitWindow} · N ${cfg.nWindow}`; document.querySelector("#equityLabel").textContent=`初始资金 ${fmtMoney(cfg.initialCash)}`; document.querySelector("#statusPills").innerHTML=[dataset.market,dataset.currency,`行数 ${baseRows.length}`,`风险 ${pct(cfg.riskPerUnit)}`].map(x=>`<span class="pill">${x}</span>`).join(""); document.querySelector("#ruleText").textContent=`收盘价突破前一日 ${cfg.entryWindow} 日高点通道后，下一交易日开盘买入；跌破 ${cfg.exitWindow} 日低点通道或触发 ${cfg.stopN}N 止损后，下一交易日开盘卖出。仓位按单 unit 风险 ${pct(cfg.riskPerUnit)} 计算。`; if(baseRows.length<=Math.max(cfg.entryWindow,cfg.exitWindow,cfg.nWindow)+2){ warning.textContent="当前日期区间过短，可能不足以完成通道和 N 值预热。"; warning.classList.remove("hidden"); } else warning.classList.add("hidden"); const result=backtest(baseRows,cfg); const s=metrics(result,cfg); document.querySelector("#cum").textContent=pct(s.cumulative); document.querySelector("#dd").textContent=pct(s.maxDrawdown); document.querySelector("#sharpe").textContent=num(s.sharpe); document.querySelector("#bench").textContent=pct(s.benchmarkCumulative); document.querySelector("#trades").textContent=s.tradeCount; drawPrice(dataset,result,cfg); drawEquity(result); drawSensitivity(dataset,cfg); updateMetricsTable(cfg); window.currentBacktestRows=result; window.currentBacktestConfig=cfg; }
+    function download(name,text,type="text/plain"){ const blob=new Blob([text],{type}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url); }
+    document.querySelector("#downloadCsv").addEventListener("click",()=>{ const rows=window.currentBacktestRows||[]; const headers=["date","open","high","low","close","entryHigh","exitLow","n","stopPrice","tradeAction","portfolio","benchmark","drawdown"]; const csv=[headers.join(","),...rows.map(r=>headers.map(h=>r[h]??"").join(","))].join("\n"); download("task4_turtle_current_backtest.csv",csv,"text/csv;charset=utf-8"); });
+    document.querySelector("#downloadParams").addEventListener("click",()=>download("task4_turtle_params.json",JSON.stringify(window.currentBacktestConfig||currentConfig(),null,2),"application/json"));
+    document.querySelectorAll(".toggle-grid input").forEach(input=>input.addEventListener("change",render));
+    window.addEventListener("resize",render);
+    buildControls(); initDates(); initDataCards(); initPresets(); render();
+  </script>
+</body>
+</html>
+"""
+    HTML_PATH.write_text(template.replace("__PAYLOAD__", payload), encoding="utf-8")
+    (TASK_DIR / "index.html").write_text(
+        """<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="refresh" content="0; url=turtle_strategy_report.html"><title>Task 4 海龟策略回测</title></head>
+<body><p><a href="turtle_strategy_report.html">打开 Task 4 海龟策略回测报告</a></p></body>
+</html>
+""",
+        encoding="utf-8",
+    )
+
+
 def build_notebook() -> None:
     cells = [
         {
@@ -1062,7 +1254,6 @@ def build_summary_page() -> None:
     .task-card:hover {{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(23,32,51,.08); }}
     .task-card span {{ color:var(--blue); font-weight:700; }}
     .task-card h2 {{ margin:18px 0 10px; font-size:24px; letter-spacing:0; }}
-    footer {{ width:min(1120px, calc(100vw - 36px)); margin:0 auto 34px; color:var(--muted); }}
     @media (max-width:760px) {{ .grid {{ grid-template-columns:1fr; }} header {{ min-height:26vh; padding:30px 18px; }} }}
   </style>
 </head>
@@ -1079,7 +1270,6 @@ def build_summary_page() -> None:
       {card_html}
     </section>
   </main>
-  <footer>更新内容：Task 4 海龟策略 Notebook、HTML 报告、Word 文档和汇总入口页。</footer>
 </body>
 </html>
 """,
@@ -1094,7 +1284,7 @@ def main() -> None:
     portfolios, metrics_rows = build_backtests()
     sens = parameter_sensitivity()
     build_figures(portfolios, metrics_rows, sens)
-    build_html_report(portfolios, metrics_rows, sens)
+    build_interactive_html_report()
     build_notebook()
     build_word_doc(metrics_rows, sens)
     build_summary_page()
