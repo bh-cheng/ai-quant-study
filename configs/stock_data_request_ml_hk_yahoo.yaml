@@ -1,0 +1,37 @@
+request:
+  data_source: yahoo
+  frequency: daily
+  price_adjustment: qfq
+  start_date: "20180101"
+  end_date: "20260712"
+  timezone: Asia/Shanghai
+
+instruments:
+  - instrument_key: smic_h
+    company_key: smic
+    name_cn: 中芯国际
+    ts_code: 00981.HK
+    market: HK-share
+    exchange: HKEX
+    currency: HKD
+    enabled: true
+    data_provider: yahoo
+    yahoo_symbol: 0981.HK
+  - instrument_key: byd_h
+    company_key: byd
+    name_cn: 比亚迪股份
+    ts_code: 01211.HK
+    market: HK-share
+    exchange: HKEX
+    currency: HKD
+    enabled: true
+    data_provider: yahoo
+    yahoo_symbol: 1211.HK
+
+outputs:
+  raw_dir: data/raw
+  processed_dir: data/processed/equities/daily
+  report_dir: data/reports
+  encoding: utf-8-sig
+
+missing_counterparts: []

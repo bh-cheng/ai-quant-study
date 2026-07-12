@@ -1,0 +1,29 @@
+{
+  "run_date": "2026-07-12",
+  "source": "mixed",
+  "providers": [
+    "tushareMcp",
+    "yahoo"
+  ],
+  "interfaces": [
+    "tushareMcp.daily",
+    "tushareMcp.adj_factor",
+    "yahoo_chart"
+  ],
+  "requested_start": "20180101",
+  "requested_end": "20260712",
+  "price_basis": "qfq",
+  "instruments_written": [
+    "00981.HK",
+    "01211.HK",
+    "688981.SH"
+  ],
+  "rows": 5633,
+  "actual_start": "20180102",
+  "actual_end": "20260710",
+  "validation_status": "passed",
+  "limitations": [
+    "688981.SH listed after 2018, so its history begins at listing",
+    "002594.SZ and 600900.SH await Tushare adjustment-factor quota; HK data uses Yahoo adjusted-close fallback"
+  ]
+}

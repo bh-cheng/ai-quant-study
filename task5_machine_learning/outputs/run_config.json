@@ -1,0 +1,90 @@
+{
+  "data": {
+    "source": "data/processed/equities/daily/ml_equities_daily_20180101_20260712.csv",
+    "input_format": "auto",
+    "column_mapping": null,
+    "selected_symbols": "all",
+    "price_adjustment": "qfq"
+  },
+  "experiment": {
+    "task_type": "both",
+    "selected_models": "all",
+    "per_symbol": true
+  },
+  "target": {
+    "forecast_horizon": 1,
+    "regression_target": "future_return",
+    "classification_threshold": 0.0
+  },
+  "features": {
+    "return_windows": [
+      1,
+      5,
+      10,
+      20
+    ],
+    "sma_windows": [
+      5,
+      10,
+      20,
+      60
+    ],
+    "volatility_windows": [
+      10,
+      20
+    ],
+    "rsi_window": 14,
+    "atr_window": 14,
+    "volume_window": 20,
+    "include_calendar": false
+  },
+  "split": {
+    "mode": "fixed_years",
+    "train_start": "2018-01-01",
+    "train_end": "2022-12-31",
+    "validation_start": "2023-01-01",
+    "validation_end": "2024-12-31",
+    "test_start": "2025-01-01",
+    "test_end": null,
+    "internal_train_ratio": 0.7,
+    "time_series_cv_splits": 5
+  },
+  "models": {
+    "random_state": 42,
+    "linear_regression": {},
+    "logistic_regression": {
+      "max_iter": 1000
+    },
+    "decision_tree_regressor": {
+      "max_depth": 10
+    },
+    "decision_tree_classifier": {
+      "max_depth": 10,
+      "class_weight": null
+    },
+    "random_forest_regressor": {
+      "n_estimators": 100,
+      "max_depth": 10,
+      "n_jobs": -1
+    },
+    "random_forest_classifier": {
+      "n_estimators": 100,
+      "max_depth": 10,
+      "n_jobs": -1,
+      "class_weight": null
+    },
+    "knn_regressor": {
+      "n_neighbors": 5,
+      "weights": "uniform"
+    },
+    "knn_classifier": {
+      "n_neighbors": 5,
+      "weights": "uniform"
+    }
+  },
+  "output": {
+    "directory": "task5_machine_learning/outputs",
+    "save_predictions": true,
+    "save_metrics": true
+  }
+}
