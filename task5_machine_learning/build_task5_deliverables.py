@@ -23,7 +23,7 @@ FIG = OUTPUT / "figures"
 DOC_DIR = ROOT / "TASK5"
 DOC_FIG = DOC_DIR / "figures"
 DOCX = DOC_DIR / "程冰晖 TASK5.docx"
-HTML = TASK / "machine_learning_report.html"
+HTML = TASK / "index.html"
 
 for d in [FIG, DOC_DIR, DOC_FIG]: d.mkdir(parents=True, exist_ok=True)
 
