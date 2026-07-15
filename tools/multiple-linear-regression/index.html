@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="纯前端多元线性回归分析工具：上传或粘贴 CSV，一键生成 OLS 统计结果、诊断与图表。">
+  <title>多元线性回归分析 · 数据分析工具</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="back-link" href="../../index.html" aria-label="返回 AI Quant Study 汇总页">← 返回汇总页</a>
+    <div class="header-note">纯前端 · 本地计算</div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">DATA ANALYSIS TOOL</p>
+      <h1 id="page-title">多元线性回归<br>分析工作台</h1>
+      <p class="hero-copy">把 CSV 放进来，选择一个应变量和多个自变量，即刻获得完整的 OLS 模型结果、显著性检验、影响诊断与可视化。</p>
+      <div class="privacy-banner" role="note">
+        <span class="privacy-mark" aria-hidden="true">✓</span>
+        <div><strong>数据不会离开你的设备</strong><span>解析、计算、绘图和导出全部在当前浏览器中完成，不会上传到服务器。</span></div>
+      </div>
+    </section>
+
+    <section class="workspace-section" aria-labelledby="input-title">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">01 · 导入数据</p>
+          <h2 id="input-title">从 CSV 开始</h2>
+        </div>
+        <p>第一行应为唯一字段名；首版回归变量仅支持纯数值列。</p>
+      </div>
+
+      <div class="import-grid">
+        <div id="drop-zone" class="drop-zone" aria-describedby="drop-help">
+          <input id="file-input" type="file" accept=".csv,text/csv,text/plain" hidden>
+          <div class="drop-icon" aria-hidden="true">CSV</div>
+          <h3>拖拽 CSV 到这里</h3>
+          <p id="drop-help">或点击选择本地文件，建议不超过 10 MB</p>
+          <button id="choose-file" class="button button-primary" type="button">选择 CSV 文件</button>
+        </div>
+
+        <div class="paste-panel">
+          <div>
+            <p class="mini-label">无需准备文件</p>
+            <h3>直接粘贴 CSV 文本</h3>
+            <p>支持逗号、制表符和分号分隔，也可以先加载示例数据体验。</p>
+          </div>
+          <label class="sr-only" for="paste-input">粘贴 CSV 文本</label>
+          <textarea id="paste-input" rows="6" placeholder="例如：&#10;sales,price,marketing&#10;128,39.9,18&#10;145,36.5,22"></textarea>
+          <div class="button-row">
+            <button id="parse-paste" class="button button-secondary" type="button">解析粘贴内容</button>
+            <button id="load-sample" class="button button-quiet" type="button">加载示例数据</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="global-message" class="message" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <section id="data-workspace" class="workspace-section" aria-labelledby="data-title" hidden>
+      <div class="section-heading section-heading-actions">
+        <div>
+          <p class="step-label">02 · 检查与配置</p>
+          <h2 id="data-title">数据已就绪</h2>
+          <p id="source-description"></p>
+        </div>
+        <button id="reset-data" class="button button-quiet" type="button">清空并重新开始</button>
+      </div>
+
+      <div id="data-stats" class="summary-strip" aria-label="数据摘要"></div>
+      <div id="parse-warnings" class="message message-warning" hidden></div>
+
+      <div class="data-layout">
+        <div class="data-inspection">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="mini-label">数据预览</p>
+                <h3>前 10 行</h3>
+              </div>
+              <span class="panel-note">仅预览，计算使用全部有效行</span>
+            </div>
+            <div class="table-scroll preview-scroll">
+              <table id="preview-table"></table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="mini-label">字段检查</p>
+                <h3>列类型与缺失值</h3>
+              </div>
+              <span class="panel-note">混合/文本列不会进入变量列表</span>
+            </div>
+            <div id="column-inventory" class="column-inventory"></div>
+          </article>
+        </div>
+
+        <aside class="model-panel" aria-labelledby="model-config-title">
+          <div class="model-panel-head">
+            <p class="mini-label">模型设置</p>
+            <h3 id="model-config-title">选择 Y 与 X</h3>
+          </div>
+
+          <label class="field-label" for="y-select">应变量 Y</label>
+          <select id="y-select"></select>
+
+          <fieldset class="x-fieldset">
+            <legend>自变量 X</legend>
+            <div class="x-toolbar">
+              <span id="x-selected-count">已选择 0 个</span>
+              <button id="clear-x" class="text-button" type="button">清空</button>
+            </div>
+            <div id="x-options" class="x-options"></div>
+          </fieldset>
+
+          <div class="setting-row">
+            <label class="switch-label" for="include-intercept">
+              <input id="include-intercept" type="checkbox" checked>
+              <span>包含截距项</span>
+            </label>
+            <label for="confidence-select">
+              <span>置信水平</span>
+              <select id="confidence-select">
+                <option value="0.9">90%</option>
+                <option value="0.95" selected>95%</option>
+                <option value="0.99">99%</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="eligibility-summary" class="eligibility-summary" aria-live="polite"></div>
+          <button id="run-regression" class="button button-run" type="button">一键运行回归 <span aria-hidden="true">→</span></button>
+          <p class="model-footnote">缺失值按所选变量整行剔除；不会自动填补或删除异常点。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="results-section" class="results-section" aria-labelledby="results-title" hidden>
+      <div class="results-header">
+        <div>
+          <p class="step-label step-label-light">03 · 分析结果</p>
+          <h2 id="results-title">回归模型报告</h2>
+          <p id="results-subtitle"></p>
+        </div>
+        <div class="export-menu">
+          <button id="print-results" class="button button-light" type="button">打印 / PDF</button>
+          <details>
+            <summary class="button button-accent">下载结果</summary>
+            <div class="download-list">
+              <button type="button" data-download="summary">模型摘要 CSV</button>
+              <button type="button" data-download="coefficients">系数表 CSV</button>
+              <button type="button" data-download="diagnostics">预测与诊断 CSV</button>
+              <button type="button" data-download="json">完整结果 JSON</button>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div id="result-warning-box" class="result-warning-box" hidden></div>
+
+      <div class="tabs-shell">
+        <div class="tab-list" role="tablist" aria-label="回归结果章节">
+          <button id="tab-overview" role="tab" aria-selected="true" aria-controls="panel-overview" data-tab="overview">概览</button>
+          <button id="tab-summary" role="tab" aria-selected="false" aria-controls="panel-summary" data-tab="summary" tabindex="-1">模型摘要</button>
+          <button id="tab-anova" role="tab" aria-selected="false" aria-controls="panel-anova" data-tab="anova" tabindex="-1">ANOVA</button>
+          <button id="tab-coefficients" role="tab" aria-selected="false" aria-controls="panel-coefficients" data-tab="coefficients" tabindex="-1">系数</button>
+          <button id="tab-diagnostics" role="tab" aria-selected="false" aria-controls="panel-diagnostics" data-tab="diagnostics" tabindex="-1">诊断</button>
+          <button id="tab-charts" role="tab" aria-selected="false" aria-controls="panel-charts" data-tab="charts" tabindex="-1">图表</button>
+          <button id="tab-data" role="tab" aria-selected="false" aria-controls="panel-data" data-tab="data" tabindex="-1">数据明细</button>
+        </div>
+
+        <div class="tab-panels">
+          <section id="panel-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-overview">
+            <div id="overview-kpis" class="kpi-grid"></div>
+            <article class="report-card equation-card">
+              <p class="mini-label">估计方程</p>
+              <div id="model-equation" class="model-equation"></div>
+            </article>
+            <div id="overview-insights" class="insight-grid"></div>
+          </section>
+
+          <section id="panel-summary" class="tab-panel" role="tabpanel" aria-labelledby="tab-summary" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">MODEL FIT</p><h3>模型拟合摘要</h3></div>
+              <p>R² 衡量拟合程度，不代表因果关系。</p>
+            </div>
+            <div id="summary-table" class="table-scroll"></div>
+          </section>
+
+          <section id="panel-anova" class="tab-panel" role="tabpanel" aria-labelledby="tab-anova" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">OVERALL TEST</p><h3>方差分析 ANOVA</h3></div>
+              <p>F 检验评估模型整体是否提供了统计解释力。</p>
+            </div>
+            <div id="anova-table" class="table-scroll"></div>
+          </section>
+
+          <section id="panel-coefficients" class="tab-panel" role="tabpanel" aria-labelledby="tab-coefficients" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">PARAMETERS</p><h3>回归系数</h3></div>
+              <p id="coefficient-caption"></p>
+            </div>
+            <div id="coefficient-table" class="table-scroll"></div>
+            <p class="table-footnote">显著性标记：*** p&lt;0.001，** p&lt;0.01，* p&lt;0.05，· p&lt;0.10。VIF 只用于提示共线性风险。</p>
+          </section>
+
+          <section id="panel-diagnostics" class="tab-panel" role="tabpanel" aria-labelledby="tab-diagnostics" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">ASSUMPTIONS</p><h3>残差与影响诊断</h3></div>
+              <p>阈值只用于复核提示，不会自动删除观测或重新拟合。</p>
+            </div>
+            <div id="diagnostic-kpis" class="diagnostic-grid"></div>
+            <div id="residual-summary-table" class="table-scroll compact-table"></div>
+          </section>
+
+          <section id="panel-charts" class="tab-panel" role="tabpanel" aria-labelledby="tab-charts" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">VISUAL DIAGNOSTICS</p><h3>六个模型视角</h3></div>
+              <p id="chart-sampling-note"></p>
+            </div>
+            <div class="chart-grid">
+              <article class="chart-card"><h4>实际值 vs 预测值</h4><p>越贴近对角线，样本内拟合越一致。</p><div class="canvas-wrap"><canvas id="chart-actual" aria-label="实际值与预测值散点图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+              <article class="chart-card"><h4>残差 vs 拟合值</h4><p>观察非线性结构和方差变化。</p><div class="canvas-wrap"><canvas id="chart-residual" aria-label="残差与拟合值散点图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+              <article class="chart-card"><h4>残差分布</h4><p>柱形为样本残差，橙线为正态参考。</p><div class="canvas-wrap"><canvas id="chart-histogram" aria-label="残差直方图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+              <article class="chart-card"><h4>正态 Q–Q</h4><p>系统偏离参考线提示残差非正态。</p><div class="canvas-wrap"><canvas id="chart-qq" aria-label="残差正态 Q-Q 图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+              <article class="chart-card"><h4>Scale–Location</h4><p>平滑趋势越水平，方差越稳定。</p><div class="canvas-wrap"><canvas id="chart-scale" aria-label="Scale-Location 图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+              <article class="chart-card"><h4>杠杆与影响点</h4><p>点越大表示 Cook's distance 越高。</p><div class="canvas-wrap"><canvas id="chart-leverage" aria-label="杠杆值与学生化残差图"></canvas><div class="chart-tooltip" hidden></div></div></article>
+            </div>
+          </section>
+
+          <section id="panel-data" class="tab-panel" role="tabpanel" aria-labelledby="tab-data" hidden>
+            <div class="report-heading">
+              <div><p class="mini-label">ROW-LEVEL AUDIT</p><h3>预测与逐行诊断</h3></div>
+              <p id="diagnostic-table-note"></p>
+            </div>
+            <div id="diagnostic-table" class="table-scroll tall-table"></div>
+            <div id="exclusion-summary" class="report-card"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>多元线性回归分析工具 · 结果用于数据分析辅助，不替代研究设计与业务判断。</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

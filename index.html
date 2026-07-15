@@ -19,6 +19,12 @@
     .task-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(23,32,51,.08); }
     .task-card span { color:var(--blue); font-weight:700; }
     .task-card h2 { margin:18px 0 10px; font-size:24px; letter-spacing:0; }
+    .tools-section { margin-top:36px; padding-top:30px; border-top:1px solid var(--line); }
+    .section-heading { margin:0 0 18px; }
+    .section-heading span { display:block; margin-bottom:6px; color:#0f766e; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .section-heading h2 { margin:0 0 6px; font-size:28px; }
+    .tool-card { border-color:#bcd8d3; background:linear-gradient(135deg,#fff 0%,#f0fdfa 100%); }
+    .tool-card span { color:#0f766e; }
     @media (max-width:760px) { .grid { grid-template-columns:1fr; } header { min-height:26vh; padding:30px 18px; } }
   </style>
 </head>
@@ -52,11 +58,25 @@
         <h2>海龟策略回测</h2>
         <p>唐奇安通道、ATR/N 值、2N 止损、风险定仓和多标的回测。</p>
       </a>
-<a class="task-card" href="task5_machine_learning/index.html">
+      <a class="task-card" href="task5_machine_learning/index.html">
         <span>Task 5</span>
         <h2>股票分类机器学习</h2>
         <p>逻辑回归、决策树、随机森林、KNN，以及混淆矩阵、ROC 与 AUC 交互评估。</p>
       </a>
+    </section>
+    <section class="tools-section" aria-labelledby="tools-title">
+      <div class="section-heading">
+        <span>Practical Tools</span>
+        <h2 id="tools-title">实用工具</h2>
+        <p>可直接在浏览器中使用的数据分析工作台。</p>
+      </div>
+      <div class="grid">
+        <a class="task-card tool-card" href="tools/multiple-linear-regression/index.html">
+          <span>数据分析工具</span>
+          <h2>多元线性回归分析</h2>
+          <p>上传或粘贴 CSV，选择变量，一键生成 OLS 回归结果、诊断指标与可视化图表。</p>
+        </a>
+      </div>
     </section>
   </main>
 </body>
