@@ -380,8 +380,10 @@ tbody tr:hover td { background: #fafbfc; }
 .type-pill.type-empty { color: var(--muted) !important; background: #eceff3; }
 
 .model-panel {
-  position: sticky;
-  top: 18px;
+  position: static;
+  align-self: start;
+  width: 100%;
+  max-width: 100%;
   padding: 24px;
   color: white;
   background: var(--ink);
